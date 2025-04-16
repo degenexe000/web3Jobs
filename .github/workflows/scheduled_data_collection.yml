@@ -50,6 +50,10 @@ jobs:
         echo "Activating the virtual environment..."
         source venv/bin/activate
         
+        # Ensure uv pip is used in the virtual environment
+        which pip
+        pip --version
+        
         # Install dependencies
         echo "Attempting to install dependencies from ${{ github.workspace }}/requirements.txt ..."
         if [ -f "${{ github.workspace }}/requirements.txt" ]; then
