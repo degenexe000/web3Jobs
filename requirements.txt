@@ -4,3 +4,4 @@ pymongo>=4.3.0
 psycopg2-binary>=2.9.5
 praw>=7.6.0
 tweepy>=4.12.0
+# Add any other dependencies your scripts need
