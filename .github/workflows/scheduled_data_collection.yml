@@ -2,55 +2,60 @@ name: Scheduled Data Collection
 
 on:
   schedule:
-    - cron: '0 */6 * * *'  # Runs at 00:00, 06:00, 12:00, 18:00 UTC
-  workflow_dispatch:  # Allows manual triggering from GitHub Actions tab
+    # Runs every 6 hours (adjust cron schedule as needed)
+    # Example: '0 */6 * * *' runs at 00:00, 06:00, 12:00, 18:00 UTC
+    # Example: '0 3 * * *' runs daily at 3 AM UTC
+    - cron: '0 */6 * * *'
+  # Allows you to manually trigger the workflow from the GitHub Actions tab
+  workflow_dispatch:
 
 jobs:
   collect_and_process:
+    # Run on the latest Ubuntu Linux environment provided by GitHub Actions runners
     runs-on: ubuntu-latest
+    # Set a maximum time the job can run before being cancelled (e.g., 60 minutes)
     timeout-minutes: 60
 
     steps:
-    # Step 1: Check out repository code onto the runner
+    # Step 1: Checks out a copy of your repository code onto the runner machine
     - name: Check out repository code
       uses: actions/checkout@v4
 
-    # Step 2: List all files in the repository for debugging
-    - name: List all files in the directory after checkout
+    # Step 2: Debugging step to list files in the checkout directory
+    - name: List files in checkout directory
       run: |
-        echo "Listing files in /home/runner/work/web3Jobs/web3Jobs:"
-        ls -la /home/runner/work/web3Jobs/web3Jobs
+        echo "Listing files in current directory (${PWD}):"
+        ls -la
+        echo "Workspace path: ${{ github.workspace }}" # Explicitly print workspace path
 
-    # Step 3: Set up Python
+    # Step 3: Set up the specified Python version on the runner
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.11'
+        python-version: '3.11' # Use a specific, stable version
 
-    # Step 4: Install uv (modern pip alternative)
+    # Step 4: Install the 'uv' Python package manager
     - name: Install uv (modern pip alternative)
       run: |
-        echo "Installing uv..."
+        echo "Installing uv package manager..."
         curl -LsSf https://astral.sh/uv/install.sh | sh
+        # Add uv's install location to the runner's PATH environment variable
         echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-        uv --version  # Verify that uv is installed successfully
+        # Verify installation by printing the version
+        echo "Verifying uv installation:"
+        uv --version
 
-    # Step 5: Create virtual environment, activate it, and install dependencies
-    - name: Create virtual environment with uv and install dependencies
+    # Step 5: Install Python dependencies using uv, referencing the full path
+    - name: Install Python dependencies using uv
       run: |
-        uv venv venv
-        source venv/bin/activate
         echo "Attempting to install dependencies from ${{ github.workspace }}/requirements.txt ..."
-        if [ -f "${{ github.workspace }}/requirements.txt" ]; then
-          uv pip install -r ${{ github.workspace }}/requirements.txt
-        else
-          echo "Error: requirements.txt not found!"
-          exit 1
-        fi
+        # Explicitly use the full path to requirements.txt using the github.workspace context
+        uv pip install -r ${{ github.workspace }}/requirements.txt
         echo "Dependency installation step finished."
 
-    # Step 6: Run your master Python script that orchestrates other scripts
+    # Step 6: Run your main orchestration script using the full path
     - name: Run the master task script
+      # Define environment variables using secrets stored in GitHub repository settings
       env:
         POSTGRES_URI: ${{ secrets.POSTGRES_URI }}
         MONGO_URI: ${{ secrets.MONGO_URI }}
@@ -59,8 +64,9 @@ jobs:
         REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
         TWITTER_BEARER_TOKEN: ${{ secrets.TWITTER_BEARER_TOKEN }}
         WEB3_CAREER_API_KEY: ${{ secrets.WEB3_CAREER_API_KEY }}
+        # Add any other necessary secrets here
+      # Execute the script using python3 and the explicit workspace path
       run: |
-        echo "Executing master Python script (run_all_tasks.py)..."
-        source venv/bin/activate  # Ensure the environment is activated
-        python3 run_all_tasks.py
+        echo "Executing master Python script: python3 ${{ github.workspace }}/run_all_tasks.py"
+        python3 ${{ github.workspace }}/run_all_tasks.py
         echo "Master script execution finished."
