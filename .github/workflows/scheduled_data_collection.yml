@@ -1,7 +1,4 @@
-- name: Debug environment
+- name: Debug Environment Variables
   run: |
-    echo "GitHub Workspace: ${{ github.workspace }}"
-    echo "Current directory: $(pwd)"
-    echo "Repository contents:"
-    find ${{ github.workspace }} -type f -name "*.py" | sort
-    find ${{ github.workspace }} -type f -name "requirements.txt" | sort
+    echo "POSTGRES_URI: ${{ secrets.POSTGRES_URI }}"
+    echo "MONGO_URI: ${{ secrets.MONGO_URI }}"
