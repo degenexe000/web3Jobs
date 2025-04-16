@@ -47,11 +47,11 @@ jobs:
         # Verify installation (optional but good practice)
         uv --version
 
-    # Step 6: Create and activate virtual environment using uv
+    # Step 6: Create virtual environment with uv
     - name: Create virtual environment with uv
       run: |
         uv venv venv
-        source venv/bin/activate
+        source venv/bin/activate  # Ensure that the virtual environment is activated
 
     # Step 7: Install Python dependencies using uv
     - name: Install Python dependencies using uv
