@@ -35,12 +35,12 @@ jobs:
         echo "$HOME/.cargo/bin" >> $GITHUB_PATH
         uv --version  # Verify that uv is installed successfully
 
-    # Step 5: Create and activate virtual environment with uv, then install dependencies
-    - name: Create and activate virtual environment with uv, then install dependencies
+    # Step 5: Use python's built-in venv to create and activate the virtual environment
+    - name: Create and activate virtual environment with python -m venv, then install dependencies
       run: |
-        # Create the virtual environment using uv
-        echo "Creating virtual environment..."
-        uv venv venv
+        # Create the virtual environment using python's built-in venv
+        echo "Creating virtual environment with python -m venv..."
+        python3 -m venv venv
         
         # List the contents of the 'venv' directory to verify it was created successfully
         echo "Listing contents of the 'venv' directory after creation:"
@@ -49,7 +49,7 @@ jobs:
         # Activate the virtual environment
         echo "Activating the virtual environment..."
         source venv/bin/activate
-        
+
         # Verify the Python and pip from the virtual environment
         echo "Verifying Python interpreter from virtual environment:"
         which python
@@ -58,10 +58,10 @@ jobs:
         which pip
         pip --version
 
-        # Install dependencies
+        # Install dependencies using the pip from the virtual environment
         echo "Attempting to install dependencies from ${{ github.workspace }}/requirements.txt ..."
         if [ -f "${{ github.workspace }}/requirements.txt" ]; then
-          uv pip install -r ${{ github.workspace }}/requirements.txt
+          pip install -r ${{ github.workspace }}/requirements.txt  # Explicitly use pip from the activated environment
         else
           echo "Error: requirements.txt not found!"
           exit 1
