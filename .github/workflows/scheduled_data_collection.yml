@@ -1,99 +1,111 @@
 name: Scheduled Data Collection
 
 on:
+  # Triggers the workflow on a schedule
   schedule:
-    # Runs every 6 hours
+    # Runs every 6 hours (at 00:00, 06:00, 12:00, 18:00 UTC)
+    # Use https://crontab.guru/ to generate cron schedules
     - cron: '0 */6 * * *'
-  # Allows manual triggering
+
+  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 jobs:
   collect_and_process:
+    # The type of runner that the job will run on
     runs-on: ubuntu-latest
+    # Maximum time the job is allowed to run (e.g., 60 minutes)
     timeout-minutes: 60
 
+    # A sequence of tasks called "steps" will be executed
     steps:
-    # Step 1: Checkout repository code
+    # Step 1: Check out your repository code under $GITHUB_WORKSPACE, so your job can access it
     - name: Check out repository code
       uses: actions/checkout@v4
 
-    # Step 2: Debug environment
+    # Step 2: Debug - List files to confirm checkout location and requirements.txt presence
     - name: Debug Repository Files
       run: |
         echo "GitHub Workspace: ${{ github.workspace }}"
         echo "Current directory: $(pwd)"
         echo "Repository contents:"
-        ls -la
-        echo "Python files:"
-        find . -name "*.py" | sort
-        echo "Requirements file:"
-        find . -name "requirements.txt" | sort
-        if [ -f "requirements.txt" ]; then
-          echo "Requirements file content:"
-          cat requirements.txt
-        else
-          echo "WARNING: requirements.txt not found"
-        fi
+        ls -la ${{ github.workspace }} # List files in the checkout root
+        echo "Looking for requirements.txt at root:"
+        find ${{ github.workspace }} -maxdepth 1 -name "requirements.txt"
 
-    # Step 3: Set up Python
+    # Step 3: Set up Python environment
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.11'
+        python-version: '3.11' # Specify desired Python version
 
-    # Step 4: Install dependencies using standard pip
-    - name: Install Python dependencies
+    # Step 4: Install 'uv' - A fast Python package installer
+    - name: Install uv (modern pip alternative)
       run: |
-        python -m pip install --upgrade pip
-        if [ -f requirements.txt ]; then
-          pip install -r requirements.txt
-          echo "Dependencies installed successfully"
-        else
-          echo "WARNING: requirements.txt not found"
-          exit 1
-        fi
+        echo "Installing uv..."
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        # Add uv's directory to the system PATH for this job
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+        # Verify uv installation
+        uv --version
 
-    # Step 5: Test dependency imports
-    - name: Test Script Import
+    # Step 5: Install Python dependencies using uv and the explicit requirements file path
+    - name: Install Python dependencies using uv
       run: |
-        echo "Testing script imports..."
-        python -c "
+        echo "Attempting to install dependencies from ${{ github.workspace }}/requirements.txt ..."
+        uv pip install -r ${{ github.workspace }}/requirements.txt
+        echo "Dependency installation step finished."
+
+    # Step 6: Test that required libraries can be imported
+    - name: Test Required Imports
+      run: |
+        echo "Testing library imports..."
+        python3 -c "
 import sys
 print(f'Python version: {sys.version}')
-try:
-    import requests
-    print('✓ requests module available')
-except ImportError as e:
-    print(f'✗ ERROR: {e}')
+errors_found = 0
+libs_to_test = [
+    'requests', 'bs4', 'lxml', 'psycopg2', 'pymongo',
+    'praw', 'tweepy', 'vaderSentiment.vaderSentiment'
+]
+print('\nChecking imports:')
+for lib_path in libs_to_test:
+    try:
+        parts = lib_path.split('.')
+        module_name = parts[0] # The actual package name to import first
 
-try:
-    import pandas
-    print('✓ pandas module available')
-except ImportError as e:
-    print(f'✗ ERROR: {e}')
+        if module_name == 'vaderSentiment': # Special case for vader
+            from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+            print(f'✓ Successfully imported: {lib_path}')
+        else:
+            __import__(module_name) # Import the base package
+            print(f'✓ Successfully imported: {module_name}')
 
-try:
-    import pymongo
-    print('✓ pymongo module available')
-except ImportError as e:
-    print(f'✗ ERROR: {e}')
+    except ImportError as e:
+        print(f'✗ ERROR importing {lib_path}: {e}')
+        errors_found += 1
+    except Exception as e_gen: # Catch other potential errors during import test
+        print(f'✗ UNEXPECTED ERROR testing import {lib_path}: {e_gen}')
+        errors_found += 1
+
+if errors_found > 0:
+    print(f'\n{errors_found} import errors detected. Exiting.')
+    sys.exit(1) # Fail the step if imports failed
+else:
+    print('\nAll critical library imports successful.')
 "
 
-    # Step 6: Set file permissions
+    # Step 7: (Optional but harmless) Set executable permissions for Python scripts
     - name: Set executable permissions
+      # While generally not needed when calling with python3, it ensures permissions aren't an issue
       run: |
-        chmod +x run_all_tasks.py
-        chmod +x collect_web3career.py
-        chmod +x scrape_cryptojobslist.py
-        chmod +x collect_reddit.py
-        chmod +x collect_twitter.py
-        chmod +x process_sentiment.py
-        echo "File permissions updated"
+        chmod +x ${{ github.workspace }}/*.py || echo "No .py files found or chmod failed (might be ok)."
+        echo "Executable permissions checked/set."
 
-    # Step 7: Debug Environment Variables
-    - name: Debug Environment Variables
+    # Step 8: Debug check to see if secrets are being recognized by Actions
+    - name: Debug Environment Variables (Secrets Check)
       run: |
-        echo "Checking environment variables (masked for security)"
+        echo "Checking availability of secrets..."
         echo "POSTGRES_URI: ${{ secrets.POSTGRES_URI != '' && 'SET' || 'NOT SET' }}"
         echo "MONGO_URI: ${{ secrets.MONGO_URI != '' && 'SET' || 'NOT SET' }}"
         echo "REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID != '' && 'SET' || 'NOT SET' }}"
@@ -102,8 +114,9 @@ except ImportError as e:
         echo "TWITTER_BEARER_TOKEN: ${{ secrets.TWITTER_BEARER_TOKEN != '' && 'SET' || 'NOT SET' }}"
         echo "WEB3_CAREER_API_KEY: ${{ secrets.WEB3_CAREER_API_KEY != '' && 'SET' || 'NOT SET' }}"
 
-    # Step 8: Run the master task script
-    - name: Run Data Collection Tasks
+    # Step 9: Run the master Python script that orchestrates all tasks
+    - name: Run Data Collection Tasks (Master Script)
+      # Pass secrets as environment variables
       env:
         POSTGRES_URI: ${{ secrets.POSTGRES_URI }}
         MONGO_URI: ${{ secrets.MONGO_URI }}
@@ -112,6 +125,6 @@ except ImportError as e:
         REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
         TWITTER_BEARER_TOKEN: ${{ secrets.TWITTER_BEARER_TOKEN }}
         WEB3_CAREER_API_KEY: ${{ secrets.WEB3_CAREER_API_KEY }}
+      # Run the script using python3 and the explicit path
       run: |
-        echo "Running run_all_tasks.py..."
-        python run_all_tasks.py
+        echo "Executing master Python script: python3 ${{ github.workspace }}/run_all_tasks.py"
