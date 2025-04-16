@@ -26,13 +26,18 @@ jobs:
         echo "Listing files in current directory (${PWD}):"
         ls -la
 
-    # Step 3: Set up the specified Python version
+    # Step 3: Debug the workspace path
+    - name: Debug workspace path
+      run: |
+        echo "GitHub workspace path: ${{ github.workspace }}"
+
+    # Step 4: Set up the specified Python version
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.11' # Use a specific version, align with your development env
 
-    # Step 4: Install uv, a faster Python package installer/resolver
+    # Step 5: Install uv, a faster Python package installer/resolver
     - name: Install uv (modern pip alternative)
       run: |
         echo "Installing uv..."
@@ -42,15 +47,19 @@ jobs:
         # Verify installation (optional but good practice)
         uv --version
 
-    # Step 5: Install Python dependencies using uv, referencing the full path
+    # Step 6: Install Python dependencies using uv, referencing the full path
     - name: Install Python dependencies using uv
       run: |
         echo "Attempting to install dependencies from ${{ github.workspace }}/requirements.txt ..."
-        # Explicitly use the full path with github.workspace variable
-        uv pip install -r ${{ github.workspace }}/requirements.txt
+        if [ -f "${{ github.workspace }}/requirements.txt" ]; then
+          uv pip install -r ${{ github.workspace }}/requirements.txt
+        else
+          echo "Error: requirements.txt not found!"
+          exit 1
+        fi
         echo "Dependency installation step finished."
 
-    # Step 6: Run your main Python script that orchestrates other scripts
+    # Step 7: Run your main Python script that orchestrates other scripts
     - name: Run the master task script
       # Pass GitHub Secrets securely as environment variables to the script
       env:
