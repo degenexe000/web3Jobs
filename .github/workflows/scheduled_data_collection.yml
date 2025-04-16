@@ -42,13 +42,13 @@ jobs:
         echo "Dependency installation using pip finished."
 
     # 5. Run Import Test Script <<< MODIFIED STEP <<<
-    - name: Run Import Test Script
+    - name: Run Imports Test Script
       # Only run if the script exists (checked in step 2 implicitly by not exiting)
       # Optional: add an explicit `if: steps.verify_files.outputs.<something>` if needed
       run: |
-        echo "Running test_imports.py script..." # <<< Update echo too
-        python3 ${{ github.workspace }}/test_imports.py # <<< CORRECTED FILENAME (plural)
-        echo "Import test script finished."
+        echo "Running test_imports.py script..." 
+        python3 ${{ github.workspace }}/test_imports.py 
+        echo "Imports test script finished."
 
     # 6. Check Secrets (No longer includes file permission step - redundant if run via python3)
     - name: Verify Secrets are Available
