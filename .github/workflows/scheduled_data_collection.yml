@@ -24,6 +24,11 @@ jobs:
       - name: Set executable permissions
         run: |
           chmod +x ${{ github.workspace }}/run_all_tasks.py
+          chmod +x ${{ github.workspace }}/collect_web3career.py
+          chmod +x ${{ github.workspace }}/scrape_cryptojobslist.py
+          chmod +x ${{ github.workspace }}/collect_reddit.py
+          chmod +x ${{ github.workspace }}/collect_twitter.py
+          chmod +x ${{ github.workspace }}/process_sentiment.py
 
       - name: Add uv to PATH
         run: echo "::add-path::${HOME}/.local/bin"
@@ -31,7 +36,7 @@ jobs:
       - name: Verify uv installation
         run: which uv
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r ${{ github.workspace }}/requirements.txt
@@ -45,3 +50,5 @@ jobs:
         run: |
           echo "POSTGRES_URI: ${{ secrets.POSTGRES_URI }}"
           echo "MONGO_URI: ${{ secrets.MONGO_URI }}"
+          echo "REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}"
+          echo "TWITTER_BEARER_TOKEN: ${{ secrets.TWITTER_BEARER_TOKEN }}"
