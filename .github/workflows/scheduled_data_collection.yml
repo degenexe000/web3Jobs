@@ -83,4 +83,3 @@ jobs:
         source venv/bin/activate  # Ensure the environment is activated
         python3 /home/runner/work/web3Jobs/web3Jobs/run_all_tasks.py
         echo "Master script execution finished."
-Key Updates:
