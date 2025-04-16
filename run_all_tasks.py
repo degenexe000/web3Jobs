@@ -1,60 +1,57 @@
-import subprocess
-import time
+#!/usr/bin/env python3
+"""
+Master orchestration script for web3Jobs data collection.
+This script coordinates all data collection tasks.
+"""
+import os
 import sys
-from datetime import datetime
+import logging
+import traceback
 
-# List of scripts to run in order
-scripts_to_run = [
-    'collect_web3career.py',
-    'scrape_cryptojobslist.py',
-    'collect_reddit.py',
-    'collect_twitter.py',
-    'process_sentiment.py'
-]
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
-print(f"--- Starting Task Runner at {datetime.utcnow().isoformat()} ---")
+def check_required_env_vars():
+    """Check if required environment variables are set."""
+    required_vars = [
+        "POSTGRES_URI", "MONGO_URI", "REDDIT_CLIENT_ID",
+        "REDDIT_CLIENT_SECRET", "REDDIT_USER_AGENT",
+        "TWITTER_BEARER_TOKEN", "WEB3_CAREER_API_KEY"
+    ]
+    for var in required_vars:
+        if os.environ.get(var) is None:
+            logger.error(f"Environment variable {var} is not set.")
+            sys.exit(1)
+        else:
+            logger.info(f"Environment variable {var} is set.")
 
-for script_name in scripts_to_run:
-    print(f"\n>>> Running script: {script_name} <<<")
-    start_time = time.time()
+def main():
+    """Main execution function."""
+    logger.info("Starting data collection process")
+
+    # Ensure all required environment variables are set
+    check_required_env_vars()
+
+    # Add your data collection logic here
     try:
-        # Use subprocess to run each script using python3
-        process = subprocess.run(
-            [sys.executable, script_name],  # Use sys.executable to ensure correct python version
-            capture_output=True,
-            text=True,
-            check=True,
-            timeout=900  # Set a timeout (e.g., 15 minutes) per script
-        )
-        # Print the output from the script
-        print(f"--- Output from {script_name} ---")
-        print(process.stdout)
-        if process.stderr:  # Print errors if any occurred
-            print(f"--- Errors from {script_name} ---")
-            print(process.stderr)
-        print(f"--- Finished {script_name} ---")
+        # Example: Call functions for collecting data from different sources
+        # collect_reddit_data()
+        # collect_twitter_data()
 
-    except subprocess.CalledProcessError as e:
-        # Script exited with an error code
-        print(f">>> Error running {script_name}: Exited with code {e.returncode}")
-        print(f"--- STDOUT ---:\n{e.stdout}")
-        print(f"--- STDERR ---:\n{e.stderr}")
-        break  # Stop if one script fails catastrophically
-
-    except subprocess.TimeoutExpired as e:
-        print(f">>> Timeout running {script_name} after {e.timeout} seconds.")
-        print(f"--- STDOUT ---:\n{e.stdout}")
-        print(f"--- STDERR ---:\n{e.stderr}")
-        break  # Stop if one script times out
+        logger.info("Data collection process completed")
 
     except Exception as e:
-        # Catch other potential errors during subprocess run
-        print(f">>> Unexpected error trying to run {script_name}: {e}")
-        break  # Stop on unexpected errors
+        logger.error(f"Error during data collection: {e}", exc_info=True)
+        sys.exit(1)
 
-    end_time = time.time()
-    print(f"Script {script_name} took {end_time - start_time:.2f} seconds.")
-    # Optional short pause between scripts
-    time.sleep(5)
-
-print(f"\n--- Task Runner Finished at {datetime.utcnow().isoformat()} ---")
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}", exc_info=True)
+        logger.error("Traceback:", exc_info=True)
+        sys.exit(1)
