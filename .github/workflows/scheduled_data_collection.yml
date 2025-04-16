@@ -39,11 +39,11 @@ jobs:
           else
             echo "✗ WARNING: requirements.txt NOT found at ${{ github.workspace }}/requirements.txt"
           fi
-          echo "Checking for test_imports.py at root:"
-          if [ -f "${{ github.workspace }}/test_imports.py" ]; then
-            echo "✓ test_imports.py found."
+          echo "Checking for test_import.py at root:"
+          if [ -f "${{ github.workspace }}/test_import.py" ]; then
+            echo "✓ test_import.py found."
           else
-            echo "✗ WARNING: test_imports.py NOT found at ${{ github.workspace }}/test_imports.py"
+            echo "✗ WARNING: test_import.py NOT found at ${{ github.workspace }}/test_import.py"
           fi
           echo "Checking for run_all_tasks.py at root:"
           if [ -f "${{ github.workspace }}/run_all_tasks.py" ]; then
@@ -75,12 +75,12 @@ jobs:
       # Step 5: Run the separate Python script to test imports
       - name: Run Import Test Script
         run: |
-          echo "Running test_imports.py script..."
-          if [ -f "${{ github.workspace }}/test_imports.py" ]; then
-            python3 ${{ github.workspace }}/test_imports.py
+          echo "Running test_import.py script..."
+          if [ -f "${{ github.workspace }}/test_import.py" ]; then
+            python3 ${{ github.workspace }}/test_import.py
             echo "Import test script execution complete."
           else
-            echo "✗ ERROR: test_imports.py not found."
+            echo "✗ ERROR: test_import.py not found."
             exit 1 # Fail step if test script is missing
           fi
 
