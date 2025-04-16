@@ -47,7 +47,13 @@ jobs:
         # Verify installation (optional but good practice)
         uv --version
 
-    # Step 6: Install Python dependencies using uv, referencing the full path
+    # Step 6: Set up virtual environment
+    - name: Set up virtual environment
+      run: |
+        python3 -m venv venv
+        source venv/bin/activate
+
+    # Step 7: Install Python dependencies using uv
     - name: Install Python dependencies using uv
       run: |
         echo "Attempting to install dependencies from ${{ github.workspace }}/requirements.txt ..."
@@ -59,7 +65,7 @@ jobs:
         fi
         echo "Dependency installation step finished."
 
-    # Step 7: Run your main Python script that orchestrates other scripts
+    # Step 8: Run your main Python script that orchestrates other scripts
     - name: Run the master task script
       # Pass GitHub Secrets securely as environment variables to the script
       env:
