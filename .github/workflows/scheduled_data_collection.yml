@@ -1,15 +1,92 @@
-- name: Run the master task script
-  env:
-    POSTGRES_URI: ${{ secrets.POSTGRES_URI }}
-    MONGO_URI: ${{ secrets.MONGO_URI }}
-    REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
-    REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
-    REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
-    TWITTER_BEARER_TOKEN: ${{ secrets.TWITTER_BEARER_TOKEN }}
-    WEB3_CAREER_API_KEY: ${{ secrets.WEB3_CAREER_API_KEY }}
-  run: |
-    echo "Executing master Python script with absolute path..."
-    source venv/bin/activate  # Ensure the environment is activated
-    python3 /home/runner/work/web3Jobs/web3Jobs/run_all_tasks.py
-    echo "Master script execution finished."
-  continue-on-error: true
+name: Scheduled Data Collection
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # Runs at 00:00, 06:00, 12:00, 18:00 UTC
+  workflow_dispatch:  # Allows manual triggering from GitHub Actions tab
+
+jobs:
+  collect_and_process:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+    # Step 1: Check out repository code onto the runner
+    - name: Check out repository code
+      uses: actions/checkout@v4
+
+    # Step 2: List all files in the repository for debugging
+    - name: List all files in the directory after checkout
+      run: |
+        echo "Listing files in /home/runner/work/web3Jobs/web3Jobs:"
+        ls -la /home/runner/work/web3Jobs/web3Jobs
+
+    # Step 3: Set up Python
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    # Step 4: Install uv (modern pip alternative)
+    - name: Install uv (modern pip alternative)
+      run: |
+        echo "Installing uv..."
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+        uv --version  # Verify that uv is installed successfully
+
+    # Step 5: Use python's built-in venv to create and activate the virtual environment
+    - name: Create and activate virtual environment with python -m venv, then install dependencies
+      run: |
+        # Create the virtual environment using python's built-in venv
+        echo "Creating virtual environment with python -m venv..."
+        python3 -m venv venv
+        
+        # List the contents of the 'venv' directory to verify it was created successfully
+        echo "Listing contents of the 'venv' directory after creation:"
+        ls -la venv
+
+        # Activate the virtual environment
+        echo "Activating the virtual environment..."
+        source venv/bin/activate
+
+        # Verify the Python and pip from the virtual environment
+        echo "Verifying Python interpreter from virtual environment:"
+        which python
+        python --version
+        echo "Verifying pip from virtual environment:"
+        which pip
+        pip --version
+
+        # Install dependencies using the pip from the virtual environment
+        echo "Attempting to install dependencies from ${{ github.workspace }}/requirements.txt ..."
+        if [ -f "${{ github.workspace }}/requirements.txt" ]; then
+          pip install -r ${{ github.workspace }}/requirements.txt  # Explicitly use pip from the activated environment
+        else
+          echo "Error: requirements.txt not found!"
+          exit 1
+        fi
+        echo "Dependency installation step finished."
+
+    # Step 6: Run your master Python script that orchestrates other scripts using absolute path
+    - name: Run the master task script
+      env:
+        POSTGRES_URI: ${{ secrets.POSTGRES_URI }}
+        MONGO_URI: ${{ secrets.MONGO_URI }}
+        REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+        REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+        REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
+        TWITTER_BEARER_TOKEN: ${{ secrets.TWITTER_BEARER_TOKEN }}
+        WEB3_CAREER_API_KEY: ${{ secrets.WEB3_CAREER_API_KEY }}
+      run: |
+        echo "Executing master Python script with absolute path..."
+        source venv/bin/activate  # Ensure the environment is activated
+        python3 /home/runner/work/web3Jobs/web3Jobs/run_all_tasks.py
+        echo "Master script execution finished."
+
+    # Step 7: Post Set up Python tasks (this will run regardless of any previous failures)
+    - name: Post Set up Python
+      if: always()  # Ensures this step runs regardless of previous failures
+      run: |
+        echo "Post Python setup tasks here..."
+        # You can add any cleanup or additional tasks that should always run
