@@ -43,10 +43,10 @@ jobs:
         uv venv venv
         
         # Verify the virtual environment directory exists
-        echo "Listing contents of the 'venv' directory:"
+        echo "Listing contents of the 'venv' directory after creation:"
         ls -la venv
 
-        # Activate the virtual environment
+        # Ensure that the virtual environment is activated
         echo "Activating the virtual environment..."
         source venv/bin/activate
 
