@@ -1,0 +1,49 @@
+name: Scheduled Data Collection
+
+on:
+  schedule:
+    # Runs every 6 hours (adjust cron schedule as needed)
+    # Use crontab guru to help: https://crontab.guru/
+    - cron: '0 */6 * * *'
+  # Allows manual triggering from GitHub Actions tab
+  workflow_dispatch:
+
+jobs:
+  collect_and_process:
+    runs-on: ubuntu-latest # Use a standard Linux runner
+    timeout-minutes: 60 # Max job runtime (adjust if needed)
+
+    steps:
+    - name: Check out repository code
+      uses: actions/checkout@v4 # Fetches your code
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11' # Match the Python version used in Replit if possible
+
+    - name: Install uv (or pip/pip3 if preferred)
+      run: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        source $HOME/.cargo/env
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+        uv --version # Verify uv install
+
+    - name: Install Python dependencies using uv
+      run: |
+        uv pip install -r requirements.txt # Assumes you create/maintain requirements.txt
+        # Or install individually if no requirements.txt:
+        # uv pip install requests beautifulsoup4 lxml psycopg2-binary pymongo praw tweepy==4.14.0 vaderSentiment
+
+    - name: Run the master task script
+      env: # Make GitHub secrets available as environment variables
+        POSTGRES_URI: ${{ secrets.POSTGRES_URI }}
+        MONGO_URI: ${{ secrets.MONGO_URI }}
+        REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+        REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+        REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
+        TWITTER_BEARER_TOKEN: ${{ secrets.TWITTER_BEARER_TOKEN }}
+        WEB3_CAREER_API_KEY: ${{ secrets.WEB3_CAREER_API_KEY }}
+        # Add other TWITTER secrets here if needed
+      run: |
+        python3 run_all_tasks.py # Execute your master script
