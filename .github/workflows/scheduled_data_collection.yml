@@ -2,62 +2,51 @@ name: Scheduled Data Collection
 
 on:
   schedule:
-    - cron: "0 0 * * *"  # Runs at midnight UTC every day
+    - cron: '0 0 * * *'  # Adjust the cron expression to your required schedule
   workflow_dispatch:
 
 jobs:
   data-collection:
-    runs-on: ubuntu-latest
-    
+    runs-on: ubuntu-latest  # Use ubuntu-latest runner
     steps:
-    # Step 1: Check out repository code
-    - name: Check out repository code
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
+      - name: Check out repository code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all commits (useful for debugging)
 
-    # Step 2: Set up Python environment
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'  # Adjust the Python version if needed
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'  # Ensure using the correct Python version
 
-    # Step 3: Install Python dependencies
-    - name: Install Python dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r ${{ github.workspace }}/requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt  # Install dependencies from requirements.txt
 
-    # Step 4: Add debug information
-    - name: Debug Environment Variables
-      run: |
-        echo "GitHub Workspace: ${{ github.workspace }}"
-        echo "Current directory: $(pwd)"
-        echo "Python version: $(python --version)"
-        echo "Repository contents:"
-        find ${{ github.workspace }} -type f -name "*.py" | sort
-        find ${{ github.workspace }} -type f -name "requirements.txt" | sort
+      - name: Debug Environment
+        run: |
+          echo "GitHub Workspace: ${{ github.workspace }}"
+          echo "Current directory: $(pwd) "
+          echo "Python version: $(python --version)"
+          echo "Repository contents:"
+          find ${{ github.workspace }} -type f -name "*.py" | sort
+          find ${{ github.workspace }} -type f -name "requirements.txt" | sort
 
-    # Step 5: Set file permissions (make sure the script is executable)
-    - name: Set file permissions
-      run: |
-        chmod +x ${{ github.workspace }}/run_all_tasks.py
-        echo "File permissions updated"
+      - name: Run data collection script
+        run: |
+          chmod +x run_all_tasks.py  # Ensure the main script is executable
+          python run_all_tasks.py || echo "::error::Script failed: $(cat error.log)"
 
-    # Step 6: Run the master task script
-    - name: Run the master task script
-      run: |
-        python ${{ github.workspace }}/run_all_tasks.py
+      - name: Upload logs as artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: logs
+          path: ${{ github.workspace }}/logs  # Adjust the path to where your logs are stored
 
-    # Step 7: Post job cleanup (optional)
-    - name: Post job cleanup
-      run: |
-        echo "Cleaning up after job"
-        # Optional: Add any clean-up commands here
-
-    # Step 8: Upload artifacts (optional, for debugging)
-    - name: Upload logs as artifacts
-      uses: actions/upload-artifact@v2
-      with:
-        name: logs
-        path: ${{ github.workspace }}/logs
+      - name: Post job cleanup
+        run: |
+          echo "Post job cleanup - uploading logs and diagnostics"
+          # Additional cleanup logic, e.g., removing temp files, uploading diagnostics
+          # Example of how to upload diagnostic logs after a failure (adjust as needed)
+          upload-artifacts diagnostic-logs /path/to/logs
