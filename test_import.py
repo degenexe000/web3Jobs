@@ -1,4 +1,3 @@
-# ----- test_imports.py -----
 import sys
 import importlib
 import traceback
