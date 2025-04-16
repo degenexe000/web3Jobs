@@ -1,178 +1,186 @@
 name: Scheduled Data Collection
 
+# Events that trigger this workflow
 on:
+  # Trigger on a schedule using CRON syntax
   schedule:
-    # Runs every 6 hours (at 00:00, 06:00, 12:00, 18:00 UTC)
-    # Use https://crontab.guru/ to generate cron schedules
+    # Example: Runs every 6 hours (at 00:00, 06:00, 12:00, 18:00 UTC)
+    # Adjust as needed - use https://crontab.guru/ for help
     - cron: '0 */6 * * *'
 
-  # Allows you to run this workflow manually from the Actions tab
+  # Allow manual triggering from the GitHub Actions UI
   workflow_dispatch:
 
+# Define the jobs within the workflow
 jobs:
+  # Name of the primary job
   collect_and_process:
-    # The type of runner that the job will run on
+    # Runner environment: use the latest standard Ubuntu Linux image
     runs-on: ubuntu-latest
-    # Set a maximum time the job is allowed to run
-    timeout-minutes: 60
+    # Maximum time the job can run before cancellation
+    timeout-minutes: 60 # Adjust if your combined scripts take longer
 
-    # Sequence of tasks (steps) to execute
+    # Sequence of tasks (steps) executed by the runner
     steps:
-    # Step 1: Check out your repository code
-    - name: Check out repository code
-      uses: actions/checkout@v4
+      # Step 1: Download repository code to the runner environment
+      - name: Check out repository code
+        uses: actions/checkout@v4
 
-    # Step 2: Debug step to list files
-    - name: Debug Repository Files
-      run: |
-        echo "GitHub Workspace Path: ${{ github.workspace }}"
-        echo "Current Working Directory: $(pwd)"
-        echo "--- Repository Contents (ls -la) ---"
-        ls -la ${{ github.workspace }}
-        echo "-----------------------------------"
-        echo "Checking for requirements.txt at root:"
-        if [ -f "${{ github.workspace }}/requirements.txt" ]; then
-          echo "✓ requirements.txt found at ${{ github.workspace }}/requirements.txt"
-        else
-          echo "✗ WARNING: requirements.txt NOT found at ${{ github.workspace }}/requirements.txt"
-        fi
+      # Step 2: List files in the workspace for debugging purposes
+      - name: Debug Repository Files
+        run: |
+          echo "GitHub Workspace Path: ${{ github.workspace }}"
+          echo "Current Working Directory: $(pwd)"
+          echo "--- Repository Contents (ls -la ${{ github.workspace }}) ---"
+          ls -la ${{ github.workspace }}
+          echo "-----------------------------------"
+          echo "Checking for requirements.txt at root:"
+          if [ -f "${{ github.workspace }}/requirements.txt" ]; then
+            echo "✓ requirements.txt found at ${{ github.workspace }}/requirements.txt"
+            echo "--- requirements.txt Content ---"
+            cat "${{ github.workspace }}/requirements.txt"
+            echo "------------------------------------"
+          else
+            echo "✗ WARNING: requirements.txt NOT found at ${{ github.workspace }}/requirements.txt - Installation will fail."
+          fi
 
-    # Step 3: Set up Python
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
+      # Step 3: Set up the desired Python interpreter version
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11' # Specify consistent Python version
 
-    # Step 4: Install 'uv'
-    - name: Install uv (modern pip alternative)
-      run: |
-        echo "Installing uv package manager..."
-        curl -LsSf https://astral.sh/uv/install.sh | sh
-        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-        echo "Verifying uv installation:"
-        uv --version
+      # Step 4: Install 'uv' - a faster alternative to pip
+      - name: Install uv (modern pip alternative)
+        run: |
+          echo "Installing uv package manager..."
+          # Download and execute the official installer script
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          # Add uv's bin directory to the PATH for this and subsequent steps
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          # Verify installation (useful for logs)
+          uv --version
 
-    # Step 5: Install Python dependencies
-    - name: Install Python dependencies using uv
-      run: |
-        echo "Attempting to install dependencies from ${{ github.workspace }}/requirements.txt ..."
-        if [ -f "${{ github.workspace }}/requirements.txt" ]; then
-          uv pip install -r ${{ github.workspace }}/requirements.txt
-          echo "Dependency installation using uv finished."
-        else
-          echo "✗ ERROR: requirements.txt not found at expected path. Cannot install dependencies."
-          exit 1
-        fi
+      # Step 5: Install necessary Python libraries from requirements.txt
+      - name: Install Python dependencies using uv
+        run: |
+          echo "Attempting to install dependencies from ${{ github.workspace }}/requirements.txt ..."
+          # Check if the requirements file exists before attempting installation
+          if [ -f "${{ github.workspace }}/requirements.txt" ]; then
+            # Use the full path to ensure uv finds the file
+            uv pip install -r ${{ github.workspace }}/requirements.txt
+            echo "Dependency installation using uv finished successfully."
+          else
+            echo "✗ ERROR: requirements.txt not found at expected path. Cannot install dependencies."
+            # Fail the workflow step if the requirements file is missing
+            exit 1
+          fi
 
-    # Step 6: Test essential library imports
-    - name: Test Required Imports
-      run: |
-        echo "Testing essential library imports..."
-        python3 -c "
-# --- Start of Python code block ---
+      # Step 6: Perform a quick check that essential libraries can be imported
+      - name: Test Required Imports
+        run: |
+          # Ensure the Python code block starts correctly indented under the pipe symbol
+          echo "Testing essential library imports..."
+          python3 -c "
+# --- Start of Python test script ---
 import sys
+import importlib
 print(f'Python version: {sys.version}')
 errors_found = 0
+# List the *package* or *top-level module* names as installed by pip/uv
 libs_to_test = [
     'requests', 'bs4', 'lxml', 'psycopg2', 'pymongo',
-    'praw', 'tweepy', 'vaderSentiment.vaderSentiment'
+    'praw', 'tweepy', 'vaderSentiment' # Base package for vader
 ]
 print('\nChecking imports:')
-for lib_path in libs_to_test:
+for lib_name in libs_to_test:
     try:
-        parts = lib_path.split('.')
-        module_name = parts[0]
-
-        if module_name == 'vaderSentiment':
-            from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-            print(f'✓ Imported: vaderSentiment.vaderSentiment.SentimentIntensityAnalyzer')
-        elif module_name == 'bs4':
-            from bs4 import BeautifulSoup
-            print(f'✓ Imported: bs4.BeautifulSoup')
-        else:
-            __import__(module_name)
-            print(f'✓ Imported: {module_name}')
-
+        importlib.import_module(lib_name) # Try importing the module
+        print(f'✓ Successfully imported: {lib_name}')
     except ImportError as e:
-        print(f'✗ ERROR importing {lib_path}: {e}')
+        print(f'✗ ERROR importing {lib_name}: {e}')
         errors_found += 1
-    except Exception as e_gen:
-        print(f'✗ UNEXPECTED ERROR testing import {lib_path}: {e_gen}')
+    except Exception as e_gen: # Catch other potential errors during import test
+        print(f'✗ UNEXPECTED ERROR testing import {lib_name}: {e_gen}')
         errors_found += 1
 
 if errors_found > 0:
     print(f'\n>>> {errors_found} critical import errors detected. Workflow step will fail.')
-    sys.exit(1) # Explicitly fail the step
+    sys.exit(1) # Fail the step explicitly
 else:
-    print('\nAll required library imports successful.')
-# --- End of Python code block ---
-" # Closing quote for python3 -c
+    print('\nAll essential library imports successful.')
+# --- End of Python test script ---
+" # Closing quote for python3 -c command argument
 
-    # Step 7: Set executable permissions (Optional)
-    - name: Set executable permissions
-      run: |
-        chmod +x ${{ github.workspace }}/*.py || echo "No .py files found or chmod failed (might be ok)."
-        echo "Executable permissions checked/set."
+      # Step 7: Set execute permissions on Python scripts (optional but good practice)
+      - name: Set executable permissions
+        run: |
+          echo "Setting execute permissions on *.py files in ${{ github.workspace }}..."
+          chmod +x ${{ github.workspace }}/*.py || echo "Warning: No .py files found or chmod failed."
+          echo "Executable permissions check/set complete."
 
-    # Step 8: Debug check for GitHub Secrets (using user-provided script)
-    - name: Debug Environment Variables (Secrets Check)
-      run: |
-        echo "Verifying GitHub Secrets are available as environment variables:"
-        if [[ -n "${{ secrets.POSTGRES_URI }}" ]]; then
-          echo "- POSTGRES_URI: SET (available)"
-        else
-          echo "- POSTGRES_URI: NOT SET (missing!)"
-        fi
+      # Step 8: Debug step to verify GitHub Secrets are being injected
+      - name: Debug Environment Variables (Secrets Check)
+        run: |
+          # This block uses shell conditionals to check if secrets are non-empty
+          echo "Verifying GitHub Secrets are available as environment variables:"
+          if [[ -n "${{ secrets.POSTGRES_URI }}" ]]; then
+            echo "- POSTGRES_URI: SET (available)"
+          else
+            echo "- POSTGRES_URI: NOT SET (missing!)"
+          fi
 
-        if [[ -n "${{ secrets.MONGO_URI }}" ]]; then
-          echo "- MONGO_URI: SET (available)"
-        else
-          echo "- MONGO_URI: NOT SET (missing!)"
-        fi
+          if [[ -n "${{ secrets.MONGO_URI }}" ]]; then
+            echo "- MONGO_URI: SET (available)"
+          else
+            echo "- MONGO_URI: NOT SET (missing!)"
+          fi
 
-        if [[ -n "${{ secrets.REDDIT_CLIENT_ID }}" ]]; then
-          echo "- REDDIT_CLIENT_ID: SET (available)"
-        else
-          echo "- REDDIT_CLIENT_ID: NOT SET (missing!)"
-        fi
+          if [[ -n "${{ secrets.REDDIT_CLIENT_ID }}" ]]; then
+            echo "- REDDIT_CLIENT_ID: SET (available)"
+          else
+            echo "- REDDIT_CLIENT_ID: NOT SET (missing!)"
+          fi
 
-        if [[ -n "${{ secrets.REDDIT_CLIENT_SECRET }}" ]]; then
-          echo "- REDDIT_CLIENT_SECRET: SET (available)"
-        else
-          echo "- REDDIT_CLIENT_SECRET: NOT SET (missing!)"
-        fi
+          if [[ -n "${{ secrets.REDDIT_CLIENT_SECRET }}" ]]; then
+            echo "- REDDIT_CLIENT_SECRET: SET (available)"
+          else
+            echo "- REDDIT_CLIENT_SECRET: NOT SET (missing!)"
+          fi
 
-        if [[ -n "${{ secrets.REDDIT_USER_AGENT }}" ]]; then
-          echo "- REDDIT_USER_AGENT: SET (available)"
-        else
-          echo "- REDDIT_USER_AGENT: NOT SET (missing!)"
-        fi
+          if [[ -n "${{ secrets.REDDIT_USER_AGENT }}" ]]; then
+            echo "- REDDIT_USER_AGENT: SET (available)"
+          else
+            echo "- REDDIT_USER_AGENT: NOT SET (missing!)"
+          fi
 
-        if [[ -n "${{ secrets.TWITTER_BEARER_TOKEN }}" ]]; then
-          echo "- TWITTER_BEARER_TOKEN: SET (available)"
-        else
-          echo "- TWITTER_BEARER_TOKEN: NOT SET (missing!)"
-        fi
+          if [[ -n "${{ secrets.TWITTER_BEARER_TOKEN }}" ]]; then
+            echo "- TWITTER_BEARER_TOKEN: SET (available)"
+          else
+            echo "- TWITTER_BEARER_TOKEN: NOT SET (missing!)"
+          fi
 
-        if [[ -n "${{ secrets.WEB3_CAREER_API_KEY }}" ]]; then
-          echo "- WEB3_CAREER_API_KEY: SET (available)"
-        else
-          echo "- WEB3_CAREER_API_KEY: NOT SET (missing!)"
-        fi
+          if [[ -n "${{ secrets.WEB3_CAREER_API_KEY }}" ]]; then
+            echo "- WEB3_CAREER_API_KEY: SET (available)"
+          else
+            echo "- WEB3_CAREER_API_KEY: NOT SET (missing!)"
+          fi
 
-        echo "Ensure all necessary secrets are listed as 'SET'."
+          echo "Ensure all necessary secrets are listed as 'SET'."
 
-    # Step 9: Run the main Python script that orchestrates all tasks
-    - name: Run Data Collection Tasks (Master Script)
-      env:
-        POSTGRES_URI: ${{ secrets.POSTGRES_URI }}
-        MONGO_URI: ${{ secrets.MONGO_URI }}
-        REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
-        REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
-        REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
-        TWITTER_BEARER_TOKEN: ${{ secrets.TWITTER_BEARER_TOKEN }}
-        WEB3_CAREER_API_KEY: ${{ secrets.WEB3_CAREER_API_KEY }}
-      run: |
-        echo "Executing master Python script: python3 ${{ github.workspace }}/run_all_tasks.py"
-        python3 ${{ github.workspace }}/run_all_tasks.py
-        echo "Master script execution finished."
+      # Step 9: Execute the main Python script that runs all tasks
+      - name: Run Data Collection Tasks (Master Script)
+        # Provide secrets as environment variables to the script
+        env:
+          POSTGRES_URI: ${{ secrets.POSTGRES_URI }}
+          MONGO_URI: ${{ secrets.MONGO_URI }}
+          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+          REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
+          TWITTER_BEARER_TOKEN: ${{ secrets.TWITTER_BEARER_TOKEN }}
+          WEB3_CAREER_API_KEY: ${{ secrets.WEB3_CAREER_API_KEY }}
+        # Run using python3 and the full path relative to the workspace
+        run: |
+          echo "Executing master script: python3 ${{ github.workspace }}/run_all_tasks.py"
+          python3 ${{ github.workspace }}/run_all_tasks.py
+          echo "Master script execution finished."
