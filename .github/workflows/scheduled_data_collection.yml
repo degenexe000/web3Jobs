@@ -1,86 +1,75 @@
-# Name for the GitHub Actions workflow
 name: Scheduled Data Collection
 
-# Controls when the workflow will run
 on:
-  # Triggers the workflow based on a CRON schedule
   schedule:
     # Runs every 6 hours (at 00:00, 06:00, 12:00, 18:00 UTC)
-    # Adjust the cron expression as needed using https://crontab.guru/
+    # Use https://crontab.guru/ to generate cron schedules
     - cron: '0 */6 * * *'
 
-  # Allows manual triggering from the GitHub Actions tab
+  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# Defines the jobs that will run as part of the workflow
 jobs:
-  # Name of the job (can be anything descriptive)
   collect_and_process:
-    # The type of virtual machine runner to use
+    # The type of runner that the job will run on
     runs-on: ubuntu-latest
-    # Maximum time the entire job can run
+    # Set a maximum time the job is allowed to run
     timeout-minutes: 60
 
     # Sequence of tasks (steps) to execute
     steps:
-      # Step 1: Download a copy of your repository code onto the runner
-      - name: Check out repository code
-        uses: actions/checkout@v4
+    # Step 1: Check out your repository code
+    - name: Check out repository code
+      uses: actions/checkout@v4
 
-      # Step 2: List files to help debug (verify requirements.txt is present at root)
-      - name: Debug Repository Files
-        run: |
-          echo "GitHub Workspace Path: ${{ github.workspace }}"
-          echo "Current Working Directory: $(pwd)"
-          echo "--- Repository Contents (ls -la) ---"
-          ls -la ${{ github.workspace }}
-          echo "-----------------------------------"
-          echo "Checking for requirements.txt at root..."
-          if [ -f "${{ github.workspace }}/requirements.txt" ]; then
-            echo "✓ requirements.txt found at ${{ github.workspace }}/requirements.txt"
-            echo "--- requirements.txt Content ---"
-            cat "${{ github.workspace }}/requirements.txt"
-            echo "----------------------------- ----"
-          else
-            echo "✗ WARNING: requirements.txt NOT found at ${{ github.workspace }}/requirements.txt"
-          fi
+    # Step 2: Debug step to list files
+    - name: Debug Repository Files
+      run: |
+        echo "GitHub Workspace Path: ${{ github.workspace }}"
+        echo "Current Working Directory: $(pwd)"
+        echo "--- Repository Contents (ls -la) ---"
+        ls -la ${{ github.workspace }}
+        echo "-----------------------------------"
+        echo "Checking for requirements.txt at root:"
+        if [ -f "${{ github.workspace }}/requirements.txt" ]; then
+          echo "✓ requirements.txt found at ${{ github.workspace }}/requirements.txt"
+        else
+          echo "✗ WARNING: requirements.txt NOT found at ${{ github.workspace }}/requirements.txt"
+        fi
 
-      # Step 3: Set up the Python interpreter environment
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11' # Specify Python version
+    # Step 3: Set up Python
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
 
-      # Step 4: Install 'uv', a faster package installer
-      - name: Install uv (modern pip alternative)
-        run: |
-          echo "Installing uv package manager..."
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-          echo "Verifying uv installation:"
-          uv --version
+    # Step 4: Install 'uv'
+    - name: Install uv (modern pip alternative)
+      run: |
+        echo "Installing uv package manager..."
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+        echo "Verifying uv installation:"
+        uv --version
 
-      # Step 5: Install Python libraries listed in requirements.txt using uv
-      - name: Install Python dependencies using uv
-        run: |
-          echo "Attempting to install dependencies using: uv pip install -r ${{ github.workspace }}/requirements.txt"
-          if [ -f "${{ github.workspace }}/requirements.txt" ]; then
-            uv pip install -r ${{ github.workspace }}/requirements.txt
-            echo "Dependency installation using uv finished."
-          else
-            echo "✗ ERROR: requirements.txt not found at expected path. Cannot install dependencies."
-            exit 1
-          fi
+    # Step 5: Install Python dependencies
+    - name: Install Python dependencies using uv
+      run: |
+        echo "Attempting to install dependencies from ${{ github.workspace }}/requirements.txt ..."
+        if [ -f "${{ github.workspace }}/requirements.txt" ]; then
+          uv pip install -r ${{ github.workspace }}/requirements.txt
+          echo "Dependency installation using uv finished."
+        else
+          echo "✗ ERROR: requirements.txt not found at expected path. Cannot install dependencies."
+          exit 1
+        fi
 
-      # Step 6: Test critical library imports after installation
-      - name: Test Required Imports
-        # Use the pipe multi-line indicator for the shell script block
-        run: |
-          # Start of the shell script block - Ensure indentation is correct
-          echo "Testing essential library imports..."
-          python3 -c "
+    # Step 6: Test essential library imports
+    - name: Test Required Imports
+      run: |
+        echo "Testing essential library imports..."
+        python3 -c "
 # --- Start of Python code block ---
-# This Python code runs via the -c flag, indentation here is Python style
 import sys
 print(f'Python version: {sys.version}')
 errors_found = 0
@@ -92,17 +81,16 @@ print('\nChecking imports:')
 for lib_path in libs_to_test:
     try:
         parts = lib_path.split('.')
-        module_name = parts[0] # Base package name
+        module_name = parts[0]
 
-        # Special handling for packages where module name != package name
         if module_name == 'vaderSentiment':
             from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
             print(f'✓ Imported: vaderSentiment.vaderSentiment.SentimentIntensityAnalyzer')
         elif module_name == 'bs4':
-            from bs4 import BeautifulSoup # Test the typical import
+            from bs4 import BeautifulSoup
             print(f'✓ Imported: bs4.BeautifulSoup')
         else:
-            __import__(module_name) # Use generic import for others
+            __import__(module_name)
             print(f'✓ Imported: {module_name}')
 
     except ImportError as e:
@@ -112,48 +100,79 @@ for lib_path in libs_to_test:
         print(f'✗ UNEXPECTED ERROR testing import {lib_path}: {e_gen}')
         errors_found += 1
 
-# Exit strategy depends on the number of errors found
 if errors_found > 0:
     print(f'\n>>> {errors_found} critical import errors detected. Workflow step will fail.')
     sys.exit(1) # Explicitly fail the step
 else:
     print('\nAll required library imports successful.')
 # --- End of Python code block ---
-" # Closing quote for python3 -c command argument
+" # Closing quote for python3 -c
 
-      # Step 7: Set execute permissions on Python scripts (optional but good practice)
-      - name: Set executable permissions
-        run: |
-          echo "Setting execute permissions on .py files in workspace..."
-          chmod +x ${{ github.workspace }}/*.py || echo "No .py files found or chmod failed (might be ok)."
-          echo "Executable permissions checked/set."
+    # Step 7: Set executable permissions (Optional)
+    - name: Set executable permissions
+      run: |
+        chmod +x ${{ github.workspace }}/*.py || echo "No .py files found or chmod failed (might be ok)."
+        echo "Executable permissions checked/set."
 
-      # Step 8: Debug step to verify secrets are being loaded by Actions
-      - name: Debug Environment Variables (Secrets Check)
-        run: |
-          echo "Verifying GitHub Secrets are available as environment variables:"
-          echo "- POSTGRES_URI: ${{ secrets.POSTGRES_URI != '' && 'SET (available)' || 'NOT SET (missing!)' }}"
-          echo "- MONGO_URI: ${{ secrets.MONGO_URI != '' && 'SET (available)' || 'NOT SET (missing!)' }}"
-          echo "- REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID != '' && 'SET (available)' || 'NOT SET (missing!)' }}"
-          echo "- REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET != '' && 'SET (available)' || 'NOT SET (missing!)' }}"
-          echo "- REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT != '' && 'SET (available)' || 'NOT SET (missing!)' }}"
-          echo "- TWITTER_BEARER_TOKEN: ${{ secrets.TWITTER_BEARER_TOKEN != '' && 'SET (available)' || 'NOT SET (missing!)' }}"
-          echo "- WEB3_CAREER_API_KEY: ${{ secrets.WEB3_CAREER_API_KEY != '' && 'SET (available)' || 'NOT SET (missing!)' }}"
-          echo "Ensure all necessary secrets are listed as 'SET'."
+    # Step 8: Debug check for GitHub Secrets (using user-provided script)
+    - name: Debug Environment Variables (Secrets Check)
+      run: |
+        echo "Verifying GitHub Secrets are available as environment variables:"
+        if [[ -n "${{ secrets.POSTGRES_URI }}" ]]; then
+          echo "- POSTGRES_URI: SET (available)"
+        else
+          echo "- POSTGRES_URI: NOT SET (missing!)"
+        fi
 
-      # Step 9: Run the main Python script that executes all collection/processing tasks
-      - name: Run Data Collection Tasks (Master Script)
-        # Make secrets accessible as environment variables FOR THIS STEP ONLY
-        env:
-          POSTGRES_URI: ${{ secrets.POSTGRES_URI }}
-          MONGO_URI: ${{ secrets.MONGO_URI }}
-          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
-          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
-          REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
-          TWITTER_BEARER_TOKEN: ${{ secrets.TWITTER_BEARER_TOKEN }}
-          WEB3_CAREER_API_KEY: ${{ secrets.WEB3_CAREER_API_KEY }}
-        # Execute the script using python3 and the explicit workspace path
-        run: |
-          echo "Executing master script: python3 ${{ github.workspace }}/run_all_tasks.py"
-          python3 ${{ github.workspace }}/run_all_tasks.py
-          echo "Master script execution finished."
+        if [[ -n "${{ secrets.MONGO_URI }}" ]]; then
+          echo "- MONGO_URI: SET (available)"
+        else
+          echo "- MONGO_URI: NOT SET (missing!)"
+        fi
+
+        if [[ -n "${{ secrets.REDDIT_CLIENT_ID }}" ]]; then
+          echo "- REDDIT_CLIENT_ID: SET (available)"
+        else
+          echo "- REDDIT_CLIENT_ID: NOT SET (missing!)"
+        fi
+
+        if [[ -n "${{ secrets.REDDIT_CLIENT_SECRET }}" ]]; then
+          echo "- REDDIT_CLIENT_SECRET: SET (available)"
+        else
+          echo "- REDDIT_CLIENT_SECRET: NOT SET (missing!)"
+        fi
+
+        if [[ -n "${{ secrets.REDDIT_USER_AGENT }}" ]]; then
+          echo "- REDDIT_USER_AGENT: SET (available)"
+        else
+          echo "- REDDIT_USER_AGENT: NOT SET (missing!)"
+        fi
+
+        if [[ -n "${{ secrets.TWITTER_BEARER_TOKEN }}" ]]; then
+          echo "- TWITTER_BEARER_TOKEN: SET (available)"
+        else
+          echo "- TWITTER_BEARER_TOKEN: NOT SET (missing!)"
+        fi
+
+        if [[ -n "${{ secrets.WEB3_CAREER_API_KEY }}" ]]; then
+          echo "- WEB3_CAREER_API_KEY: SET (available)"
+        else
+          echo "- WEB3_CAREER_API_KEY: NOT SET (missing!)"
+        fi
+
+        echo "Ensure all necessary secrets are listed as 'SET'."
+
+    # Step 9: Run the main Python script that orchestrates all tasks
+    - name: Run Data Collection Tasks (Master Script)
+      env:
+        POSTGRES_URI: ${{ secrets.POSTGRES_URI }}
+        MONGO_URI: ${{ secrets.MONGO_URI }}
+        REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+        REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+        REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
+        TWITTER_BEARER_TOKEN: ${{ secrets.TWITTER_BEARER_TOKEN }}
+        WEB3_CAREER_API_KEY: ${{ secrets.WEB3_CAREER_API_KEY }}
+      run: |
+        echo "Executing master Python script: python3 ${{ github.workspace }}/run_all_tasks.py"
+        python3 ${{ github.workspace }}/run_all_tasks.py
+        echo "Master script execution finished."
