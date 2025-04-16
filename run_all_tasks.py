@@ -1,4 +1,4 @@
-# ----- run_all_tasks.py -----
+
 import subprocess
 import time
 import sys
