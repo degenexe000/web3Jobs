@@ -1,92 +1,68 @@
-# Workflow name displayed on GitHub Actions tab
 name: Scheduled Data Collection
 
-# Events that trigger this workflow
 on:
-  # Trigger on a schedule using CRON syntax
   schedule:
-    # Runs every 6 hours (at 00:00, 06:00, 12:00, 18:00 UTC)
     - cron: '0 */6 * * *'
-  # Allow manual triggering from the GitHub Actions UI
   workflow_dispatch:
 
-# Define the jobs within the workflow
 jobs:
-  # Name of the primary job
   collect_and_process:
-    # Runner environment: use the latest standard Ubuntu Linux image
     runs-on: ubuntu-latest
-    # Maximum time the entire job can run
     timeout-minutes: 90
 
-    # Sequence of tasks (steps) executed by the runner
     steps:
-      # Step 1: Download repository code to the runner environment
       - name: Check out repository code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
-      # Step 2: List files to help debug (verify locations)
-      - name: Debug Repository Files
+      - name: List repository files and check for required files
         run: |
-          echo "GitHub Workspace Path: ${{ github.workspace }}"
-          echo "Current Working Directory: $(pwd)"
-          echo "--- Repository Contents (ls -la ${{ github.workspace }}) ---"
+          echo "Listing files in ${{ github.workspace }}:"
           ls -la ${{ github.workspace }}
-          echo "-----------------------------------"
-          echo "Checking for requirements.txt at root:"
+          echo "Checking for requirements.txt:"
           if [ -f "${{ github.workspace }}/requirements.txt" ]; then
             echo "✓ requirements.txt found."
           else
-            echo "✗ WARNING: requirements.txt NOT found at ${{ github.workspace }}/requirements.txt"
+            echo "✗ requirements.txt NOT found."
           fi
-          echo "Checking for test_imports.py at root:"
+          echo "Checking for test_imports.py:"
           if [ -f "${{ github.workspace }}/test_imports.py" ]; then
             echo "✓ test_imports.py found."
           else
-            echo "✗ WARNING: test_imports.py NOT found at ${{ github.workspace }}/test_imports.py"
+            echo "✗ test_imports.py NOT found."
           fi
-          echo "Checking for run_all_tasks.py at root:"
+          echo "Checking for run_all_tasks.py:"
           if [ -f "${{ github.workspace }}/run_all_tasks.py" ]; then
             echo "✓ run_all_tasks.py found."
           else
-            echo "✗ WARNING: run_all_tasks.py NOT found at ${{ github.workspace }}/run_all_tasks.py"
+            echo "✗ run_all_tasks.py NOT found."
           fi
 
-      # Step 3: Set up the Python interpreter environment
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
-      # Step 4: Install dependencies using pip (standard and reliable)
-      - name: Install Python dependencies using pip
+      - name: Install dependencies
         run: |
-          echo "Upgrading pip..."
-          python -m pip install --upgrade pip
-          echo "Installing dependencies from ${{ github.workspace }}/requirements.txt..."
           if [ -f "${{ github.workspace }}/requirements.txt" ]; then
+            python -m pip install --upgrade pip
             pip install -r ${{ github.workspace }}/requirements.txt
-            echo "Dependency installation using pip finished."
           else
             echo "✗ ERROR: requirements.txt not found. Cannot install dependencies."
-            exit 1 # Fail step if requirements file is missing
-          fi
-
-      # Step 5: Run the separate Python script to test imports
-      - name: Run Import Test Script
-        run: |
-          echo "Running test_imports.py script..."
-          if [ -f "${{ github.workspace }}/test_imports.py" ]; then
-            python3 ${{ github.workspace }}/test_imports.py
-            echo "Import test script execution complete."
-          else
-            echo "✗ ERROR: test_imports.py not found."
             exit 1
           fi
 
-      # Step 6: Check if GitHub Secrets were passed correctly
+      - name: Run import test script
+        run: |
+          if [ -f "${{ github.workspace }}/test_imports.py" ]; then
+            echo "Running test_imports.py..."
+            python3 ${{ github.workspace }}/test_imports.py
+          else
+            echo "Error: test_imports.py not found."
+            exit 1
+          fi
+
       - name: Verify Secrets are Available
-        id: check_secrets
         run: |
           echo "--- Verifying Secrets ---"
           all_secrets_set=true
@@ -98,12 +74,10 @@ jobs:
           if [[ -z "${{ secrets.TWITTER_BEARER_TOKEN }}" ]]; then echo "✗ ERROR: TWITTER_BEARER_TOKEN is NOT SET"; all_secrets_set=false; else echo "✓ TWITTER_BEARER_TOKEN: Set"; fi
           if [[ -z "${{ secrets.WEB3_CAREER_API_KEY }}" ]]; then echo "✗ ERROR: WEB3_CAREER_API_KEY is NOT SET"; all_secrets_set=false; else echo "✓ WEB3_CAREER_API_KEY: Set"; fi
           echo "--- Secrets Verification Done ---"
-          if [ "$all_secrets_set" = false ]; then echo ">>> CRITICAL: One or more required secrets are missing!"; exit 1; fi # Fail step
+          if [ "$all_secrets_set" = false ]; then echo ">>> CRITICAL: One or more required secrets are missing!"; exit 1; fi
 
-      # Step 7: Run the main task script
       - name: Run Data Collection Tasks (Master Script)
         env:
-          # Secrets are injected as environment variables
           POSTGRES_URI: ${{ secrets.POSTGRES_URI }}
           MONGO_URI: ${{ secrets.MONGO_URI }}
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
@@ -112,6 +86,11 @@ jobs:
           TWITTER_BEARER_TOKEN: ${{ secrets.TWITTER_BEARER_TOKEN }}
           WEB3_CAREER_API_KEY: ${{ secrets.WEB3_CAREER_API_KEY }}
         run: |
-          echo "Executing master script: python3 ${{ github.workspace }}/run_all_tasks.py"
-          python3 ${{ github.workspace }}/run_all_tasks.py
-          echo "Master script execution finished."
+          if [ -f "${{ github.workspace }}/run_all_tasks.py" ]; then
+            echo "Executing master script: python3 ${{ github.workspace }}/run_all_tasks.py"
+            python3 ${{ github.workspace }}/run_all_tasks.py
+            echo "Master script execution finished."
+          else
+            echo "Error: run_all_tasks.py not found."
+            exit 1
+          fi
