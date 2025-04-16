@@ -1,37 +1,33 @@
-name: Scheduled Data Collection
+name: Web3Jobs Workflow
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # Runs daily at midnight UTC
+    - cron: "0 0 * * *"
+  push:
+    branches:
+      - main
 
 jobs:
-  collect_and_process:
+  run-scripts:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.x'
 
       - name: Install uv
-        run: |
-          pip install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
 
       - name: Install Python dependencies using uv
         run: |
           uv venv
-          if [ -d ".venv" ]; then
-            echo ".venv directory created successfully."
-          else
-            echo "Failed to create .venv directory."
-            exit 1
-          fi
           uv pip install -r ${{ github.workspace }}/requirements.txt
           echo "Dependency installation step finished."
 
-      - name: Run data collection script
+      - name: Run scripts
         run: |
-          uv run python scripts/collect_data.py
+          python run_all_tasks.py
