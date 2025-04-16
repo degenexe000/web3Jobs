@@ -41,20 +41,15 @@ jobs:
         echo "$HOME/.cargo/bin" >> $GITHUB_PATH
         uv --version
 
-    # Step 6: Create and activate virtual environment using uv
-    - name: Create virtual environment with uv
+    # Step 6: Create and activate virtual environment, then install dependencies
+    - name: Create virtual environment with uv and install dependencies
       run: |
-        echo "Creating virtual environment using uv..."
+        # Create a virtual environment using uv
         uv venv venv
-        source venv/bin/activate  # Activating the virtual environment
-
-    # Step 7: Install Python dependencies using uv
-    - name: Install Python dependencies using uv
-      run: |
+        # Activate the virtual environment and install dependencies
+        source venv/bin/activate
         echo "Attempting to install dependencies from ${{ github.workspace }}/requirements.txt ..."
         if [ -f "${{ github.workspace }}/requirements.txt" ]; then
-          # Ensure uv pip install is using the virtual environment
-          source venv/bin/activate  # Activate the environment again if needed
           uv pip install -r ${{ github.workspace }}/requirements.txt
         else
           echo "Error: requirements.txt not found!"
@@ -62,7 +57,7 @@ jobs:
         fi
         echo "Dependency installation step finished."
 
-    # Step 8: Run your main Python script that orchestrates other scripts
+    # Step 7: Run your main Python script that orchestrates other scripts
     - name: Run the master task script
       env:
         POSTGRES_URI: ${{ secrets.POSTGRES_URI }}
