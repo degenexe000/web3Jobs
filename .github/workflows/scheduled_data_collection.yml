@@ -35,12 +35,22 @@ jobs:
         echo "$HOME/.cargo/bin" >> $GITHUB_PATH
         uv --version  # Verify that uv is installed successfully
 
-    # Step 5: Create and activate virtual environment, install dependencies
+    # Step 5: Create and activate virtual environment with uv, then install dependencies
     - name: Create and activate virtual environment with uv, then install dependencies
       run: |
         # Create the virtual environment using uv
+        echo "Creating virtual environment..."
         uv venv venv
-        source venv/bin/activate  # Activate the environment
+        
+        # Verify the virtual environment directory exists
+        echo "Listing contents of the 'venv' directory:"
+        ls -la venv
+
+        # Activate the virtual environment
+        echo "Activating the virtual environment..."
+        source venv/bin/activate
+        
+        # Install dependencies
         echo "Attempting to install dependencies from ${{ github.workspace }}/requirements.txt ..."
         if [ -f "${{ github.workspace }}/requirements.txt" ]; then
           uv pip install -r ${{ github.workspace }}/requirements.txt
