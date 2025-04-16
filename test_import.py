@@ -1,53 +1,66 @@
+# ----- test_imports.py -----
 import sys
 import importlib
-import traceback
+import traceback # Include traceback for more detail on unexpected errors
 
 print(f"--- Running Import Test ---")
-print(f'Using Python version: {sys.version}')
+print(f"Using Python version: {sys.version}")
 errors_found = 0
 
-# List the *package* or *top-level module* names as installed by pip/uv
+# List the *package* or *top-level module* names as typically imported
+# These should align with what you installed via requirements.txt
 libs_to_test = [
     'requests',
-    'bs4', # Installs beautifulsoup4, import as bs4
+    'bs4',          # Installs beautifulsoup4, import as bs4
     'lxml',
-    'psycopg2', # psycopg2-binary installs this module name
+    'psycopg2',     # psycopg2-binary installs this module name
     'pymongo',
     'praw',
     'tweepy',
-    'vaderSentiment' # Installs vaderSentiment, main class is in vaderSentiment.vaderSentiment
+    'vaderSentiment.vaderSentiment' # Specific path needed for class import later
 ]
 
-print('\nChecking imports:')
-for lib_name in libs_to_test:
-    print(f"- Checking {lib_name}...")
-    try:
-        # Use importlib to try importing the module by name
-        importlib.import_module(lib_name)
-        print(f'  ✓ Import successful: {lib_name}')
+print('\nChecking library imports...')
+print('----------------------------')
 
-        # Add specific class/function import tests for confirmation if desired
-        if lib_name == 'vaderSentiment':
-            from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-            print(f'    ✓ Verified SentimentIntensityAnalyzer class import')
-        elif lib_name == 'bs4':
+for lib_path in libs_to_test:
+    try:
+        module_name_to_import = lib_path.split('.')[0] # Get the base name to import first
+
+        print(f"- Checking {lib_path}... ", end="") # Print without newline initially
+
+        # Attempt to import the base module
+        module = importlib.import_module(module_name_to_import)
+
+        # Add specific checks for known classes if needed for extra validation
+        if module_name_to_import == 'bs4':
             from bs4 import BeautifulSoup
-            print(f'    ✓ Verified BeautifulSoup class import')
-        # Add others if needed
+            print(f"✓ ({module_name_to_import} - BeautifulSoup OK)")
+        elif module_name_to_import == 'vaderSentiment':
+            from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+            print(f"✓ ({module_name_to_import} - SIA OK)")
+        elif module_name_to_import == 'psycopg2':
+             # Can optionally check db connection details here if needed, but usually just import is fine
+             print(f"✓ ({module_name_to_import})") # psycopg2 doesn't have an obvious class to import simply
+        else:
+             # For others, just the base import is usually sufficient
+             print(f"✓ ({module_name_to_import})")
 
     except ImportError as e:
-        print(f'  ✗ ERROR importing {lib_name}: {e}')
+        print(f"\n✗ FAIL: Error importing {lib_path}: {e}")
         errors_found += 1
-    except Exception as e_gen: # Catch other potential errors during import test
-        print(f'  ✗ UNEXPECTED ERROR testing import {lib_name}: {e_gen}')
+    except Exception as e_gen:
+        print(f"\n✗ FAIL: Unexpected error testing import {lib_path}: {e_gen}")
+        print("--- Traceback ---")
         traceback.print_exc() # Print full traceback for unexpected errors
+        print("-----------------")
         errors_found += 1
 
-# --- Final Check and Exit ---
-print("\n--- Import Test Summary ---")
+# --- Summary and Exit ---
+print('----------------------------')
 if errors_found > 0:
-    print(f'>>> {errors_found} critical import errors detected. Failing workflow step.')
-    sys.exit(1) # Exit with a non-zero code to fail the GitHub Actions step
+    print(f"\n>>> {errors_found} critical import errors detected. Workflow step will fail.")
+    sys.exit(1) # Exit with failure code
 else:
-    print('All required library imports successful.')
+    print("\nAll required library imports were successful.")
     sys.exit(0) # Exit with success code
