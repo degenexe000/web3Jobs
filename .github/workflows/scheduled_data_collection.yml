@@ -2,6 +2,7 @@ name: Scheduled Data Collection
 
 on:
   schedule:
+    # Runs every 6 hours (adjust cron schedule as needed)
     - cron: '0 */6 * * *'  # Runs at 00:00, 06:00, 12:00, 18:00 UTC
   workflow_dispatch:  # Allows manual triggering from GitHub Actions tab
 
@@ -38,13 +39,16 @@ jobs:
         echo "Installing uv..."
         curl -LsSf https://astral.sh/uv/install.sh | sh
         echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-        uv --version
+        uv --version  # Verify that uv is installed successfully
 
-    # Step 6: Create virtual environment, activate it, and install dependencies in the same step
+    # Step 6: Create virtual environment, activate it, and install dependencies
     - name: Create virtual environment with uv and install dependencies
       run: |
         # Create the virtual environment using uv
         uv venv venv
+        # List the contents of the 'venv' directory to ensure it's created
+        echo "Listing contents of the 'venv' directory:"
+        ls -la venv
         # Activate the virtual environment and install dependencies
         source venv/bin/activate
         echo "Attempting to install dependencies from ${{ github.workspace }}/requirements.txt ..."
