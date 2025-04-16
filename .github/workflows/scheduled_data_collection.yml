@@ -1,4 +1,47 @@
-- name: Debug Environment Variables
-  run: |
-    echo "POSTGRES_URI: ${{ secrets.POSTGRES_URI }}"
-    echo "MONGO_URI: ${{ secrets.MONGO_URI }}"
+name: Scheduled Data Collection
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  data-collection:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Debug Repository Files
+        run: |
+          echo "GitHub Workspace: ${{ github.workspace }}"
+          echo "Current directory: $(pwd)"
+          echo "Repository contents:"
+          find ${{ github.workspace }} -type f -name "*.py" | sort
+          find ${{ github.workspace }} -type f -name "requirements.txt" | sort
+
+      - name: Set executable permissions
+        run: |
+          chmod +x ${{ github.workspace }}/run_all_tasks.py
+
+      - name: Add uv to PATH
+        run: echo "::add-path::${HOME}/.local/bin"
+
+      - name: Verify uv installation
+        run: which uv
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r ${{ github.workspace }}/requirements.txt
+
+      - name: Run Data Collection Tasks
+        run: |
+          echo "Running run_all_tasks.py..."
+          python ${{ github.workspace }}/run_all_tasks.py
+
+      - name: Debug Environment Variables
+        run: |
+          echo "POSTGRES_URI: ${{ secrets.POSTGRES_URI }}"
+          echo "MONGO_URI: ${{ secrets.MONGO_URI }}"
