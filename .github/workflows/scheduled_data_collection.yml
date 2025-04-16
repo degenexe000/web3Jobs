@@ -1,117 +1,63 @@
-# Workflow name displayed on GitHub Actions tab
+# CLEANED VERSION - Use only after confirming the debug version runs successfully
+
 name: Scheduled Data Collection
 
-# Events that trigger this workflow
 on:
-  # Trigger on a schedule using CRON syntax
   schedule:
-    # Runs every 6 hours (at 00:00, 06:00, 12:00, 18:00 UTC)
+    # Runs every 6 hours
     - cron: '0 */6 * * *'
-  # Allow manual triggering from the GitHub Actions UI
-  workflow_dispatch:
+  workflow_dispatch: # Allows manual runs
 
-# Define the jobs within the workflow
 jobs:
-  # Name of the primary job
   collect_and_process:
-    # Runner environment: use the latest standard Ubuntu Linux image
     runs-on: ubuntu-latest
-    # Maximum time the entire job can run
     timeout-minutes: 90
 
-    # Sequence of tasks (steps) executed by the runner
     steps:
-      # Step 1: Download repository code to the runner environment
-      - name: Check out repository code
-        uses: actions/checkout@v4
+    # Step 1: Checkout code
+    - name: Check out repository code
+      uses: actions/checkout@v4
 
-      # Step 2: List files to help debug (verify locations)
-      - name: Debug Repository Files
-        run: |
-          echo "GitHub Workspace Path: ${{ github.workspace }}"
-          echo "Current Working Directory: $(pwd)"
-          echo "--- Repository Contents (ls -la ${{ github.workspace }}) ---"
-          ls -la ${{ github.workspace }}
-          echo "-----------------------------------"
-          echo "Checking for requirements.txt at root:"
-          if [ -f "${{ github.workspace }}/requirements.txt" ]; then
-            echo "✓ requirements.txt found."
-          else
-            echo "✗ WARNING: requirements.txt NOT found at ${{ github.workspace }}/requirements.txt"
-          fi
-          echo "Checking for test_import.py at root:"
-          if [ -f "${{ github.workspace }}/test_import.py" ]; then
-            echo "✓ test_import.py found."
-          else
-            echo "✗ WARNING: test_import.py NOT found at ${{ github.workspace }}/test_import.py"
-          fi
-          echo "Checking for run_all_tasks.py at root:"
-          if [ -f "${{ github.workspace }}/run_all_tasks.py" ]; then
-            echo "✓ run_all_tasks.py found."
-          else
-            echo "✗ WARNING: run_all_tasks.py NOT found at ${{ github.workspace }}/run_all_tasks.py"
-          fi
+    # Step 2: Set up Python
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
 
-      # Step 3: Set up the Python interpreter environment
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+    # Step 3: Install dependencies
+    - name: Install Python dependencies using pip
+      run: |
+        python -m pip install --upgrade pip
+        # Assumes requirements.txt exists at root after checkout
+        pip install -r ${{ github.workspace }}/requirements.txt
+        echo "Dependencies installed."
 
-      # Step 4: Install dependencies using pip (standard and reliable)
-      - name: Install Python dependencies using pip
-        run: |
-          echo "Upgrading pip..."
-          python -m pip install --upgrade pip
-          echo "Installing dependencies from ${{ github.workspace }}/requirements.txt..."
-          if [ -f "${{ github.workspace }}/requirements.txt" ]; then
-            pip install -r ${{ github.workspace }}/requirements.txt
-            echo "Dependency installation using pip finished."
-          else
-            echo "✗ ERROR: requirements.txt not found. Cannot install dependencies."
-            exit 1 # Fail step if requirements file is missing
-          fi
+    # Step 4: Verify secrets availability (Quick check still useful)
+    - name: Verify Secrets are Available
+      run: |
+        echo "--- Verifying Secrets ---"
+        all_secrets_set=true
+        # Simple check if variable length is non-zero
+        [[ -z "${{ secrets.POSTGRES_URI }}" ]] && { echo "✗ ERROR: POSTGRES_URI is NOT SET"; all_secrets_set=false; } || echo "✓ POSTGRES_URI: Set"
+        [[ -z "${{ secrets.MONGO_URI }}" ]] && { echo "✗ ERROR: MONGO_URI is NOT SET"; all_secrets_set=false; } || echo "✓ MONGO_URI: Set"
+        [[ -z "${{ secrets.REDDIT_CLIENT_ID }}" ]] && { echo "✗ ERROR: REDDIT_CLIENT_ID is NOT SET"; all_secrets_set=false; } || echo "✓ REDDIT_CLIENT_ID: Set"
+        [[ -z "${{ secrets.REDDIT_CLIENT_SECRET }}" ]] && { echo "✗ ERROR: REDDIT_CLIENT_SECRET is NOT SET"; all_secrets_set=false; } || echo "✓ REDDIT_CLIENT_SECRET: Set"
+        [[ -z "${{ secrets.REDDIT_USER_AGENT }}" ]] && { echo "✗ ERROR: REDDIT_USER_AGENT is NOT SET"; all_secrets_set=false; } || echo "✓ REDDIT_USER_AGENT: Set"
+        [[ -z "${{ secrets.TWITTER_BEARER_TOKEN }}" ]] && { echo "✗ ERROR: TWITTER_BEARER_TOKEN is NOT SET"; all_secrets_set=false; } || echo "✓ TWITTER_BEARER_TOKEN: Set"
+        [[ -z "${{ secrets.WEB3_CAREER_API_KEY }}" ]] && { echo "✗ ERROR: WEB3_CAREER_API_KEY is NOT SET"; all_secrets_set=false; } || echo "✓ WEB3_CAREER_API_KEY: Set"
+        if [ "$all_secrets_set" = false ]; then exit 1; fi # Fail step if secrets missing
 
-      # Step 5: Run the separate Python script to test imports
-      - name: Run Import Test Script
-        run: |
-          echo "Running test_import.py script..."
-          if [ -f "${{ github.workspace }}/test_import.py" ]; then
-            python3 ${{ github.workspace }}/test_import.py
-            echo "Import test script execution complete."
-          else
-            echo "✗ ERROR: test_import.py not found."
-            exit 1 # Fail step if test script is missing
-          fi
-
-      # Step 6: Check if GitHub Secrets were passed correctly
-      - name: Verify Secrets are Available
-        id: check_secrets
-        run: |
-          echo "--- Verifying Secrets ---"
-          all_secrets_set=true
-          if [[ -z "${{ secrets.POSTGRES_URI }}" ]]; then echo "✗ ERROR: POSTGRES_URI is NOT SET"; all_secrets_set=false; else echo "✓ POSTGRES_URI: Set"; fi
-          if [[ -z "${{ secrets.MONGO_URI }}" ]]; then echo "✗ ERROR: MONGO_URI is NOT SET"; all_secrets_set=false; else echo "✓ MONGO_URI: Set"; fi
-          if [[ -z "${{ secrets.REDDIT_CLIENT_ID }}" ]]; then echo "✗ ERROR: REDDIT_CLIENT_ID is NOT SET"; all_secrets_set=false; else echo "✓ REDDIT_CLIENT_ID: Set"; fi
-          if [[ -z "${{ secrets.REDDIT_CLIENT_SECRET }}" ]]; then echo "✗ ERROR: REDDIT_CLIENT_SECRET is NOT SET"; all_secrets_set=false; else echo "✓ REDDIT_CLIENT_SECRET: Set"; fi
-          if [[ -z "${{ secrets.REDDIT_USER_AGENT }}" ]]; then echo "✗ ERROR: REDDIT_USER_AGENT is NOT SET"; all_secrets_set=false; else echo "✓ REDDIT_USER_AGENT: Set"; fi
-          if [[ -z "${{ secrets.TWITTER_BEARER_TOKEN }}" ]]; then echo "✗ ERROR: TWITTER_BEARER_TOKEN is NOT SET"; all_secrets_set=false; else echo "✓ TWITTER_BEARER_TOKEN: Set"; fi
-          if [[ -z "${{ secrets.WEB3_CAREER_API_KEY }}" ]]; then echo "✗ ERROR: WEB3_CAREER_API_KEY is NOT SET"; all_secrets_set=false; else echo "✓ WEB3_CAREER_API_KEY: Set"; fi
-          echo "--- Secrets Verification Done ---"
-          if [ "$all_secrets_set" = false ]; then echo ">>> CRITICAL: One or more required secrets are missing!"; exit 1; fi # Fail step
-
-      # Step 7: Run the main task script
-      - name: Run Data Collection Tasks (Master Script)
-        env:
-          # Secrets are injected as environment variables
-          POSTGRES_URI: ${{ secrets.POSTGRES_URI }}
-          MONGO_URI: ${{ secrets.MONGO_URI }}
-          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
-          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
-          REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
-          TWITTER_BEARER_TOKEN: ${{ secrets.TWITTER_BEARER_TOKEN }}
-          WEB3_CAREER_API_KEY: ${{ secrets.WEB3_CAREER_API_KEY }}
-        run: |
-          echo "Executing master script: python3 ${{ github.workspace }}/run_all_tasks.py"
-          python3 ${{ github.workspace }}/run_all_tasks.py
-          echo "Master script execution finished."
+    # Step 5: Run the master task script
+    - name: Run Data Collection Tasks (Master Script)
+      env:
+        POSTGRES_URI: ${{ secrets.POSTGRES_URI }}
+        MONGO_URI: ${{ secrets.MONGO_URI }}
+        REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+        REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+        REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
+        TWITTER_BEARER_TOKEN: ${{ secrets.TWITTER_BEARER_TOKEN }}
+        WEB3_CAREER_API_KEY: ${{ secrets.WEB3_CAREER_API_KEY }}
+      run: |
+        echo "Executing master script: python3 ${{ github.workspace }}/run_all_tasks.py"
+        python3 ${{ github.workspace }}/run_all_tasks.py
+        echo "Master script execution finished."
