@@ -42,19 +42,19 @@ jobs:
         echo "Creating virtual environment..."
         uv venv venv
         
-        # Verify the virtual environment directory exists
+        # List the contents of the 'venv' directory to verify it was created successfully
         echo "Listing contents of the 'venv' directory after creation:"
         ls -la venv
 
-        # Ensure that the virtual environment is activated
+        # Activate the virtual environment
         echo "Activating the virtual environment..."
         source venv/bin/activate
-
+        
         # Verify the Python and pip from the virtual environment
-        echo "Verifying Python interpreter:"
+        echo "Verifying Python interpreter from virtual environment:"
         which python
         python --version
-        echo "Verifying pip:"
+        echo "Verifying pip from virtual environment:"
         which pip
         pip --version
 
