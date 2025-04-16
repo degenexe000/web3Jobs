@@ -90,3 +90,14 @@ jobs:
       run: |
         echo "Post Python setup tasks here..."
         # You can add any cleanup or additional tasks that should always run
+
+    # Step 8: Debug environment variables (optional but helpful for troubleshooting)
+    - name: Debug Environment Variables
+      run: |
+        echo "POSTGRES_URI: $POSTGRES_URI"
+        echo "MONGO_URI: $MONGO_URI"
+        echo "REDDIT_CLIENT_ID: $REDDIT_CLIENT_ID"
+        echo "REDDIT_CLIENT_SECRET: $REDDIT_CLIENT_SECRET"
+        echo "REDDIT_USER_AGENT: $REDDIT_USER_AGENT"
+        echo "TWITTER_BEARER_TOKEN: $TWITTER_BEARER_TOKEN"
+        echo "WEB3_CAREER_API_KEY: $WEB3_CAREER_API_KEY"
