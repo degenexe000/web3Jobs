@@ -23,7 +23,14 @@ jobs:
       - name: Install Python dependencies using uv
         run: |
           uv venv
+          if [ -d ".venv" ]; then
+            echo ".venv directory created successfully."
+          else
+            echo "Failed to create .venv directory."
+            exit 1
+          fi
           uv pip install -r ${{ github.workspace }}/requirements.txt
+          echo "Dependency installation step finished."
 
       - name: Run data collection script
         run: |
