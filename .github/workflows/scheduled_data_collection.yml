@@ -1,62 +1,7 @@
-name: Scheduled Data Collection
-
-on:
-  schedule:
-    - cron: '0 */6 * * *'  # Runs at 00:00, 06:00, 12:00, 18:00 UTC
-  workflow_dispatch:  # Allows manual triggering from GitHub Actions tab
-
-jobs:
-  collect_and_process:
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-
-    steps:
-    # Step 1: Check out repository code onto the runner
-    - name: Check out repository code
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-        sparse-checkout: false  # Ensure sparse-checkout is disabled if not required
-
-    # Step 2: Debug environment
-    - name: Debug Environment
-      run: |
-        echo "GitHub Workspace: ${{ github.workspace }}"
-        echo "Current directory: $(pwd)"
-        echo "Python version: $(python --version)"
-        echo "Repository contents:"
-        find ${{ github.workspace }} -type f -name "*.py" | sort
-        find ${{ github.workspace }} -type f -name "requirements.txt" | sort
-
-    # Step 3: Set up Python
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-
-    # Step 4: Install dependencies with pip
-    - name: Install Python dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-
-    # Step 5: Set file permissions for scripts
-    - name: Set file permissions
-      run: |
-        chmod +x ${{ github.workspace }}/run_all_tasks.py
-        echo "File permissions updated"
-
-    # Step 6: Run the master task script
-    - name: Run the master task script
-      env:
-        POSTGRES_URI: ${{ secrets.POSTGRES_URI }}
-        MONGO_URI: ${{ secrets.MONGO_URI }}
-        REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
-        REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
-        REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
-        TWITTER_BEARER_TOKEN: ${{ secrets.TWITTER_BEARER_TOKEN }}
-        WEB3_CAREER_API_KEY: ${{ secrets.WEB3_CAREER_API_KEY }}
-      run: |
-        echo "Running script with verbose logging..."
-        python3 /home/runner/work/web3Jobs/web3Jobs/run_all_tasks.py
-        echo "Master script execution finished."
+- name: Debug environment
+  run: |
+    echo "GitHub Workspace: ${{ github.workspace }}"
+    echo "Current directory: $(pwd)"
+    echo "Repository contents:"
+    find ${{ github.workspace }} -type f -name "*.py" | sort
+    find ${{ github.workspace }} -type f -name "requirements.txt" | sort
