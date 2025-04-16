@@ -14,6 +14,9 @@ jobs:
     # Step 1: Check out repository code onto the runner
     - name: Check out repository code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        sparse-checkout: false  # Ensure sparse-checkout is disabled if not required
 
     # Step 2: List all files in the repository for debugging
     - name: List files in the directory after checkout
@@ -101,3 +104,9 @@ jobs:
         echo "REDDIT_USER_AGENT: $REDDIT_USER_AGENT"
         echo "TWITTER_BEARER_TOKEN: $TWITTER_BEARER_TOKEN"
         echo "WEB3_CAREER_API_KEY: $WEB3_CAREER_API_KEY"
+
+    # Step 9: Collect And Process (Ensure this step exists)
+    - name: collect_and_process
+      run: |
+        set -x  # Enables debug output
+        python3 /home/runner/work/web3Jobs/web3Jobs/collect_and_process.py || echo "::error::Script failed: $(cat error.log)"
