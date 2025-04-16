@@ -1,33 +1,38 @@
 name: Web3Jobs Workflow
 
 on:
-  schedule:
-    - cron: "0 0 * * *"
   push:
     branches:
       - main
 
 jobs:
-  run-scripts:
+  install_dependencies:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v2
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8'  # Specify your Python version
 
-      - name: Install uv
-        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+    - name: Create virtual environment
+      run: |
+        python -m venv venv
+        echo "Virtual environment created."
 
-      - name: Install Python dependencies using uv
-        run: |
-          uv venv
-          uv pip install -r ${{ github.workspace }}/requirements.txt
-          echo "Dependency installation step finished."
+    - name: Activate virtual environment and install dependencies
+      run: |
+        source venv/bin/activate
+        echo "Activating virtual environment..."
+        pip install --upgrade pip
+        pip install -r requirements.txt
+        echo "Dependencies installed."
 
-      - name: Run scripts
-        run: |
-          python run_all_tasks.py
+    - name: Verify installation
+      run: |
+        source venv/bin/activate
+        pip freeze
+        echo "Installed packages."
