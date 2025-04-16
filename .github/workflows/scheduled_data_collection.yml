@@ -2,7 +2,6 @@ name: Scheduled Data Collection
 
 on:
   schedule:
-    # Runs every 6 hours (adjust cron schedule as needed)
     - cron: '0 */6 * * *'  # Runs at 00:00, 06:00, 12:00, 18:00 UTC
   workflow_dispatch:  # Allows manual triggering from GitHub Actions tab
 
@@ -41,10 +40,10 @@ jobs:
         echo "$HOME/.cargo/bin" >> $GITHUB_PATH
         uv --version
 
-    # Step 6: Create and activate virtual environment, then install dependencies
+    # Step 6: Create virtual environment, activate it, and install dependencies in the same step
     - name: Create virtual environment with uv and install dependencies
       run: |
-        # Create a virtual environment using uv
+        # Create the virtual environment using uv
         uv venv venv
         # Activate the virtual environment and install dependencies
         source venv/bin/activate
