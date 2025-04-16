@@ -11,24 +11,64 @@ jobs:
     timeout-minutes: 60
 
     steps:
+    # Step 1: Check out repository code onto the runner
     - name: Check out repository code
       uses: actions/checkout@v4
 
+    # Step 2: List all files in the repository for debugging
+    - name: List files in the directory after checkout
+      run: |
+        echo "Listing files in /home/runner/work/web3Jobs/web3Jobs:"
+        ls -la /home/runner/work/web3Jobs/web3Jobs
+
+    # Step 3: Set up Python
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    # Step 4: Install uv (modern pip alternative)
     - name: Install uv (modern pip alternative)
       run: |
         echo "Installing uv..."
         curl -LsSf https://astral.sh/uv/install.sh | sh
         echo "::add-path::${HOME}/.local/bin"  # Add to PATH
-        uv --version
-        which uv  # Verify uv is found in the PATH
+        uv --version  # Verify that uv is installed successfully
+        which uv  # Check if uv is found in the PATH
 
-    - name: Create and activate virtual environment
+    # Step 5: Create and activate virtual environment with python -m venv, then install dependencies
+    - name: Create and activate virtual environment with python -m venv, then install dependencies
       run: |
+        echo "Creating virtual environment with python -m venv..."
         python3 -m venv venv
+        
+        # List the contents of the 'venv' directory to verify it was created successfully
+        echo "Listing contents of the 'venv' directory after creation:"
+        ls -la venv
+
+        # Activate the virtual environment
+        echo "Activating the virtual environment..."
         source venv/bin/activate
-        pip install -r ${{ github.workspace }}/requirements.txt
+
+        # Verify the Python and pip from the virtual environment
+        echo "Verifying Python interpreter from virtual environment:"
+        which python
+        python --version
+        echo "Verifying pip from virtual environment:"
+        which pip
+        pip --version
+
+        # Install dependencies using the pip from the virtual environment
+        echo "Attempting to install dependencies from ${{ github.workspace }}/requirements.txt ..."
+        if [ -f "${{ github.workspace }}/requirements.txt" ]; then
+          pip install -r ${{ github.workspace }}/requirements.txt  # Explicitly use pip from the activated environment
+        else
+          echo "Error: requirements.txt not found!"
+          exit 1
+        fi
         echo "Dependency installation step finished."
 
+    # Step 6: Run your master Python script that orchestrates other scripts using absolute path
     - name: Run the master task script
       env:
         POSTGRES_URI: ${{ secrets.POSTGRES_URI }}
@@ -39,18 +79,25 @@ jobs:
         TWITTER_BEARER_TOKEN: ${{ secrets.TWITTER_BEARER_TOKEN }}
         WEB3_CAREER_API_KEY: ${{ secrets.WEB3_CAREER_API_KEY }}
       run: |
-        echo "Executing master Python script..."
+        echo "Running script with verbose logging..."
         source venv/bin/activate
-        python3 /home/runner/work/web3Jobs/web3Jobs/run_all_tasks.py
+        python3 /home/runner/work/web3Jobs/web3Jobs/run_all_tasks.py --verbose  # Add verbose flags or logging to the script
+        echo "Master script execution finished."
 
+    # Step 7: Post Set up Python tasks (this will run regardless of any previous failures)
+    - name: Post Set up Python
+      if: always()  # Ensures this step runs regardless of previous failures
+      run: |
+        echo "Post Python setup tasks here..."
+        # You can add any cleanup or additional tasks that should always run
+
+    # Step 8: Debug Environment Variables
     - name: Debug Environment Variables
       run: |
         echo "POSTGRES_URI: $POSTGRES_URI"
         echo "MONGO_URI: $MONGO_URI"
         echo "REDDIT_CLIENT_ID: $REDDIT_CLIENT_ID"
+        echo "REDDIT_CLIENT_SECRET: $REDDIT_CLIENT_SECRET"
         echo "REDDIT_USER_AGENT: $REDDIT_USER_AGENT"
-
-    - name: Post Set up Python
-      if: always()  # Ensure this step always runs
-      run: |
-        echo "Post setup tasks here..."
+        echo "TWITTER_BEARER_TOKEN: $TWITTER_BEARER_TOKEN"
+        echo "WEB3_CAREER_API_KEY: $WEB3_CAREER_API_KEY"
